@@ -470,6 +470,77 @@
     .contact-value { font-size: 16px; font-weight: 600; word-break: break-all; }
     .contact-value.link { color: var(--accent); text-decoration: none; }
     .contact-value.link:hover { text-decoration: underline; }
+
+    /* ================= 参考标准（可折叠，默认收起） ================= */
+    .ref {
+      width: 100%;
+      font-size: 12.5px;
+      color: var(--text-dim);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+    }
+
+    .ref summary {
+      cursor: pointer;
+      color: var(--accent);
+      font-size: 12.5px;
+      user-select: none;
+    }
+
+    .ref p { margin-top: 6px; line-height: 1.8; }
+
+    /* ================= 扫雷控制按钮 ================= */
+    .ms-controls {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ================= 舒尔特遮盖层 ================= */
+    .sc-wrap { position: relative; max-width: 420px; margin: 0 auto; }
+
+    .sc-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: var(--panel);
+      border-radius: 10px;
+      text-align: center;
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+
+    /* ================= 移动端适配 ================= */
+    @media (max-width: 480px) {
+      body { padding: 14px 8px; }
+      .app { gap: 12px; }
+      .panel { padding: 12px; }
+      .hero h1 { font-size: 24px; }
+      .hero p { font-size: 13px; }
+      .cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .card { padding: 14px; }
+      .card .icon { font-size: 24px; }
+      .page-title { font-size: 17px; }
+      .hud { font-size: 13.5px; gap: 6px 12px; }
+      .ms-diff { padding: 7px 12px; font-size: 13px; }
+      #st-word { font-size: 44px; letter-spacing: 4px; }
+      .ans-btn { font-size: 15px; padding: 12px 0; }
+      #chimp-area { height: 300px; }
+      .chimp-num { width: 44px; height: 44px; font-size: 17px; }
+      #rt-area { height: 210px; }
+      #rt-main { font-size: 18px; }
+      .contact-row { flex-wrap: wrap; }
+      .modal-card { padding: 20px; }
+      .btn { padding: 8px 12px; font-size: 13px; }
+    }
   </style>
 </head>
 <body>
@@ -563,9 +634,20 @@
         <div class="ms-board-scroll">
           <div class="ms-board" id="ms-board"></div>
         </div>
+
+        <div class="ms-controls" style="margin-top:12px">
+          <button class="btn" id="ms-flagmode">🚩 插旗模式：关</button>
+          <button class="btn active" id="ms-noguess">🧠 无猜测：开</button>
+          <button class="btn" id="ms-restart">🔄 重新开始</button>
+        </div>
       </div>
 
-      <p class="hint">左键翻开 · 右键/长按插旗 · 双击数字快速翻开周围</p>
+      <p class="hint">左键翻开 · 右键/长按插旗 · 手机可开「插旗模式」点按插旗 · 双击数字快速翻开周围</p>
+
+      <details class="ref">
+        <summary>📊 参考标准</summary>
+        <p>「无猜测模式」下每盘都可全程推理，不必盲猜。社区熟练水平参考：简单 &lt;40s、中等 &lt;120s、困难 &lt;400s。个别局面即使高手也需保守猜测时，可临时关闭无猜测模式。</p>
+      </details>
 
       <div class="panel ms-lb">
         <h2>排行榜 · <span id="ms-lb-name">简单</span></h2>
@@ -603,14 +685,24 @@
           <span class="dim">错误：<b id="sc-errors">0</b></span>
         </div>
 
-        <div class="sgrid" id="sc-grid"></div>
+        <div class="sc-wrap">
+          <div class="sgrid" id="sc-grid"></div>
+          <div class="sc-overlay" id="sc-overlay">
+            <b>👀 数字已遮住，防止提前偷看</b>
+            <button class="btn primary" id="sc-go">点击开始</button>
+          </div>
+        </div>
         <p class="center-msg" id="sc-result"></p>
         <div class="center-actions">
           <button class="btn primary" id="sc-restart">重新开始</button>
         </div>
       </div>
       <p class="best" id="sc-best">最佳纪录：--</p>
-      <p class="hint">按 1 → 2 → 3 … 的顺序依次点击，点错计入错误。计时从点击第一个数字开始。</p>
+      <p class="hint">按 1 → 2 → 3 … 的顺序依次点击，点错计入错误。计时从点「开始」揭晓数字那一刻起。</p>
+      <details class="ref">
+        <summary>📊 参考标准（5×5）</summary>
+        <p>7~12 岁：≤26s 优秀，26~42s 良好；12~14 岁：≤16s 优秀；14 岁以上：≤16s 优秀，≤25s 良好。用时越短，注意广度越集中。</p>
+      </details>
     </section>
 
     <!-- ==================== Human Benchmark ==================== -->
@@ -635,6 +727,10 @@
           <span>--</span><span>--</span><span>--</span><span>--</span><span>--</span>
         </div>
         <p class="best" id="rt-best" style="margin-top:10px">历史最佳平均：--</p>
+        <details class="ref">
+          <summary>📊 参考标准</summary>
+          <p>成人平均约 250~300ms；&lt;250ms 良好，&lt;200ms 优秀。注意：抢跑或提前预判会虚高成绩。</p>
+        </details>
       </div>
 
       <!-- 序列记忆 -->
@@ -658,6 +754,10 @@
         <div class="center-actions">
           <button class="btn primary" id="sq-start">开始</button>
         </div>
+        <details class="ref">
+          <summary>📊 参考标准</summary>
+          <p>普通成人平均 6~9 关；≥12 关为优秀。每关序列 +1，考验视觉工作记忆容量。</p>
+        </details>
       </div>
 
       <!-- 黑猩猩测试 -->
@@ -675,6 +775,10 @@
           </div>
         </div>
         <p class="hint" style="margin-top:10px">点错扣一条命，共 3 条命；每过一关数字数量 +1。</p>
+        <details class="ref">
+          <summary>📊 参考标准</summary>
+          <p>普通成人平均 4~8 关；≥10 关为优秀。研究表明黑猩猩在该测试上平均与人类相当，靠的是"看完即忘"的瞬时记忆。</p>
+        </details>
       </div>
     </section>
 
@@ -700,6 +804,10 @@
       </div>
       <p class="best" id="st-best">历史最佳正确数：--</p>
       <p class="hint">例如屏幕显示蓝色字体的「红」字，正确答案是「蓝」。可用键盘 1-4 作答。</p>
+      <details class="ref">
+        <summary>📊 参考标准（30 秒）</summary>
+        <p>正确 ≥20 题良好，≥25 题优秀；平均反应 &lt;900ms 说明抑制控制较好。连击数越高越稳定。</p>
+      </details>
     </section>
 
     <!-- ==================== N-back ==================== -->
@@ -735,6 +843,10 @@
       </div>
       <p class="best" id="nb-best">历史最佳准确率（N=2）：--</p>
       <p class="hint">方块每 2.2 秒出现一次。若当前位置与前面第 N 个位置相同，尽快按「匹配」；不同则不要按。</p>
+      <details class="ref">
+        <summary>📊 参考标准</summary>
+        <p>多数成人 2-back 准确率约 50%~70%；≥80% 为优秀；能稳定完成 3-back 属高水平工作记忆。新手建议从 N=1 开始。</p>
+      </details>
     </section>
 
     <!-- ==================== 找不同 ==================== -->
@@ -760,6 +872,10 @@
       </div>
       <p class="best" id="df-best">历史最佳：--</p>
       <p class="hint">两张图有若干处不同，分别点击两图中对应的不同位置。点错扣 2 秒，全部找到进入下一关。</p>
+      <details class="ref">
+        <summary>📊 参考标准（90 秒）</summary>
+        <p>通过 ≥4 关为良好，≥6 关为优秀。点错会扣时，稳比快更重要。</p>
+      </details>
     </section>
 
     <!-- ==================== 数字划消 ==================== -->
@@ -788,6 +904,10 @@
       </div>
       <p class="best" id="cx-best">历史最佳：--</p>
       <p class="hint">模式一：划掉所有指定数字，漏掉的会在结束后显示。模式二：点击两个相邻（上下左右）加和为 10 的数字。误点每次扣分。</p>
+      <details class="ref">
+        <summary>📊 参考标准（60 秒）</summary>
+        <p>模式一：命中 ≥15 为正常，≥20 为良好；误点越少说明冲动控制越好。儿童可先追求"零误点"再提速。</p>
+      </details>
     </section>
 
     <!-- ==================== 视觉记忆矩阵 ==================== -->
@@ -807,6 +927,10 @@
         </div>
       </div>
       <p class="hint">每关方块数量 +1，格子数也会逐渐变多；点错扣一条命，共 3 条命。</p>
+      <details class="ref">
+        <summary>📊 参考标准</summary>
+        <p>普通成人平均 6~9 关；≥10 关为优秀。每关方块数 +1，视觉工作记忆容量一般约 4~7 个。</p>
+      </details>
     </section>
 
     <!-- ==================== 联系开发者 ==================== -->
@@ -913,6 +1037,8 @@
       let started = false, over = false;
       let flags = 0, opened = 0, seconds = 0, timerId = null;
       let pendingTime = 0;
+      let flagMode = false;   // 插旗模式：开启后点按即插旗（手机友好）
+      let noGuess = true;     // 无猜测模式：只生成可全程推理的棋盘
 
       function initGame() {
         const { rows, cols } = DIFFS[diff];
@@ -924,7 +1050,10 @@
         updateMines();
         timerEl.textContent = "⏱ 000";
 
-        const size = cols > 20 ? 24 : cols > 12 ? 28 : 34;
+        // 格子尺寸：按列数取基准值，再用屏幕宽度收窄，避免手机上溢出
+        let size = cols > 20 ? 24 : cols > 12 ? 28 : 34;
+        const usable = Math.max(200, window.innerWidth - 56);
+        size = Math.max(15, Math.min(size, Math.floor((usable - (cols - 1) * 2) / cols)));
         boardEl.style.setProperty("--cell-size", size + "px");
         boardEl.style.gridTemplateColumns = "repeat(" + cols + ", var(--cell-size))";
         boardEl.innerHTML = "";
@@ -938,7 +1067,13 @@
             grid[r][c] = cell;
 
             btn.addEventListener("click", () => {
-              if (!over && !cell.flag && !cell.open) {
+              if (over) return;
+              // 插旗模式：点按即插旗（手机友好），右键与长按仍然有效
+              if (flagMode) {
+                if (!cell.open) toggleFlag(r, c);
+                return;
+              }
+              if (!cell.flag && !cell.open) {
                 if (!started) placeMines(r, c);
                 reveal(r, c);
               }
@@ -958,7 +1093,9 @@
         renderLb();
       }
 
-      /* 首击后才布雷，并排除首击点及周边 3x3，保证首击必安全 */
+      /* 首击后才布雷，并排除首击点及周边 3x3，保证首击必安全。
+       * 无猜测模式：用推理求解器验证整盘可解，不可解就重新布雷
+       *（经典扫雷天然存在必须盲猜的局面，如 50/50，此模式可避免）。 */
       function placeMines(safeR, safeC) {
         const { rows, cols, mines } = DIFFS[diff];
         started = true;
@@ -967,11 +1104,38 @@
           timerEl.textContent = "⏱ " + String(Math.min(seconds, 999)).padStart(3, "0");
         }, 1000);
 
-        const candidates = [];
+        let board = null;
+        if (!noGuess) {
+          board = randomBoard(rows, cols, mines, safeR, safeC);
+        } else {
+          // 限时生成：难度越高重试越多，超时则用最后一张（极少数情况）
+          const deadline = performance.now() + 800;
+          const attempts = diff === "hard" ? 80 : 40;
+          for (let a = 0; a < attempts; a++) {
+            board = randomBoard(rows, cols, mines, safeR, safeC);
+            if (isSolvable(board.mine, board.count, rows, cols, mines, safeR, safeC)) break;
+            if (performance.now() > deadline) break;
+          }
+        }
+
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
-            if (Math.abs(r - safeR) <= 1 && Math.abs(c - safeC) <= 1) continue;
-            candidates.push([r, c]);
+            grid[r][c].mine = board.mine[r][c];
+            grid[r][c].count = board.count[r][c];
+          }
+        }
+        updateMines();
+      }
+
+      /* 随机布雷（排除首击 3x3），返回 {mine, count} 二维数组 */
+      function randomBoard(rows, cols, mines, safeR, safeC) {
+        const mine = [], count = [];
+        const candidates = [];
+        for (let r = 0; r < rows; r++) {
+          mine[r] = []; count[r] = [];
+          for (let c = 0; c < cols; c++) {
+            mine[r][c] = false;
+            if (Math.abs(r - safeR) > 1 || Math.abs(c - safeC) > 1) candidates.push([r, c]);
           }
         }
         for (let i = candidates.length - 1; i > 0; i--) {
@@ -979,14 +1143,113 @@
           const t = candidates[i]; candidates[i] = candidates[j]; candidates[j] = t;
         }
         for (const [r, c] of candidates.slice(0, Math.min(mines, candidates.length))) {
-          grid[r][c].mine = true;
+          mine[r][c] = true;
         }
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
-            grid[r][c].count = neighbors(r, c).filter(([nr, nc]) => grid[nr][nc].mine).length;
+            let n = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+              for (let dc = -1; dc <= 1; dc++) {
+                if (!dr && !dc) continue;
+                const nr = r + dr, nc = c + dc;
+                if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && mine[nr][nc]) n++;
+              }
+            }
+            count[r][c] = n;
           }
         }
-        updateMines();
+        return { mine, count };
+      }
+
+      /* 推理求解器：模拟"只按确定规则开格"能否开完全部安全格。
+       * 规则：①数字周围旗数已满→其余安全 ②未知数+旗数=数字→全雷
+       *      ③约束集合子集推理（A⊂B → B-A 全雷或全安全） */
+      function isSolvable(mine, count, rows, cols, mines, safeR, safeC) {
+        const N = rows * cols;
+        const idx = (r, c) => r * cols + c;
+        const nbs = (i) => {
+          const r = Math.floor(i / cols), c = i % cols, res = [];
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              if (!dr && !dc) continue;
+              const nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) res.push(idx(nr, nc));
+            }
+          }
+          return res;
+        };
+        // state: 0 未知 1 已开 2 已标雷
+        const state = new Array(N).fill(0);
+        let opened = 0, flagged = 0;
+        const totalSafe = N - mines;
+
+        function openFlood(start) {
+          const stack = [start];
+          while (stack.length) {
+            const i = stack.pop();
+            if (state[i] !== 0) continue;
+            state[i] = 1;
+            opened++;
+            const r = Math.floor(i / cols), c = i % cols;
+            if (count[r][c] === 0) {
+              for (const j of nbs(i)) {
+                const nr = Math.floor(j / cols), nc = j % cols;
+                if (!mine[nr][nc]) stack.push(j); // 空白格周边必安全
+              }
+            }
+          }
+        }
+
+        openFlood(idx(safeR, safeC));
+        if (opened === totalSafe) return true;
+
+        let progress = true;
+        while (progress && opened < totalSafe) {
+          progress = false;
+          const cons = [];
+          for (let i = 0; i < N; i++) {
+            const r = Math.floor(i / cols), c = i % cols;
+            if (state[i] !== 1 || count[r][c] === 0) continue;
+            const cells = [];
+            let rem = count[r][c];
+            for (const j of nbs(i)) {
+              if (state[j] === 2) rem--;
+              else if (state[j] === 0) cells.push(j);
+            }
+            if (cells.length > 0) cons.push({ cells, rem });
+          }
+
+          const openQ = [], flagQ = [];
+          for (const c of cons) {
+            if (c.rem === 0) openQ.push(...c.cells);
+            else if (c.rem === c.cells.length) flagQ.push(...c.cells);
+          }
+          // 子集推理
+          for (let a = 0; a < cons.length; a++) {
+            for (let b = 0; b < cons.length; b++) {
+              if (a === b || cons[a].cells.length >= cons[b].cells.length) continue;
+              const A = cons[a], B = cons[b];
+              if (!A.cells.every((x) => B.cells.indexOf(x) !== -1)) continue;
+              const diffCells = B.cells.filter((x) => A.cells.indexOf(x) === -1);
+              const drem = B.rem - A.rem;
+              if (drem === diffCells.length) flagQ.push(...diffCells);
+              else if (drem === 0) openQ.push(...diffCells);
+            }
+          }
+          // 雷已标满 → 其余未知格全安全
+          if (flagged === mines) {
+            for (let i = 0; i < N; i++) if (state[i] === 0) openQ.push(i);
+          }
+
+          for (const i of flagQ) {
+            if (state[i] === 0) { state[i] = 2; flagged++; progress = true; }
+          }
+          for (const i of openQ) {
+            if (state[i] === 0) { openFlood(i); progress = true; }
+          }
+          if (opened === totalSafe) return true;
+        }
+        return opened === totalSafe;
       }
 
       function neighbors(r, c) {
@@ -1140,6 +1403,23 @@
       nameEl.addEventListener("keydown", (e) => { if (e.key === "Enter") saveBtn.click(); });
 
       faceBtn.addEventListener("click", initGame);
+      document.getElementById("ms-restart").addEventListener("click", initGame);
+
+      const flagBtn = document.getElementById("ms-flagmode");
+      flagBtn.addEventListener("click", () => {
+        flagMode = !flagMode;
+        flagBtn.textContent = "🚩 插旗模式：" + (flagMode ? "开" : "关");
+        flagBtn.classList.toggle("active", flagMode);
+      });
+
+      const noGuessBtn = document.getElementById("ms-noguess");
+      noGuessBtn.addEventListener("click", () => {
+        noGuess = !noGuess;
+        noGuessBtn.textContent = "🧠 无猜测：" + (noGuess ? "开" : "关");
+        noGuessBtn.classList.toggle("active", noGuess);
+        // 模式切换对下一局生效
+        initGame();
+      });
 
       diffBtns.forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -1195,6 +1475,8 @@
       const errEl    = document.getElementById("sc-errors");
       const resultEl = document.getElementById("sc-result");
       const bestEl   = document.getElementById("sc-best");
+      const overlayEl= document.getElementById("sc-overlay");
+      const goBtn    = document.getElementById("sc-go");
       const sizeBtns = document.querySelectorAll(".s-size");
 
       let n = 5, next = 1, errors = 0, startTime = 0, timerId = null, finished = true;
@@ -1206,8 +1488,9 @@
           : "最佳纪录（" + n + "×" + n + "）：--";
       }
 
+      /* start：只生成并遮盖数字，防止提前偷看 */
       function start() {
-        finished = false;
+        finished = true; // 遮盖期间不可点击
         next = 1; errors = 0;
         nextEl.textContent = "1";
         errEl.textContent = "0";
@@ -1230,17 +1513,23 @@
           btn.addEventListener("click", () => clickCell(btn, num));
           gridEl.appendChild(btn);
         }
+        overlayEl.style.display = "";
         renderBest();
+      }
+
+      /* 点「开始」：揭晓数字并立即计时 */
+      function go() {
+        overlayEl.style.display = "none";
+        finished = false;
+        startTime = performance.now();
+        if (timerId) clearInterval(timerId);
+        timerId = setInterval(() => {
+          timeEl.textContent = ((performance.now() - startTime) / 1000).toFixed(1);
+        }, 100);
       }
 
       function clickCell(btn, num) {
         if (finished) return;
-        if (next === 1) {
-          startTime = performance.now();
-          timerId = setInterval(() => {
-            timeEl.textContent = ((performance.now() - startTime) / 1000).toFixed(1);
-          }, 100);
-        }
         if (num === next) {
           btn.classList.add("done");
           nextEl.textContent = next === n * n ? "完成" : String(next + 1);
@@ -1277,6 +1566,7 @@
         });
       });
       document.getElementById("sc-restart").addEventListener("click", start);
+      goBtn.addEventListener("click", go);
       start();
     };
 

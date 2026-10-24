@@ -539,6 +539,13 @@
       #chimp-area { height: 300px; }
       .chimp-num { width: 44px; height: 44px; font-size: 17px; }
       .ms-board { gap: 1px; }
+
+      /* 竖版棋盘较长：控制栏吸底常驻，插旗模式随时可点 */
+      .ms-controls {
+        position: sticky; bottom: 0; z-index: 5;
+        background: var(--panel); padding: 8px 0 2px;
+        box-shadow: 0 -6px 12px -8px rgba(15, 23, 42, 0.25);
+      }
       #rt-area { height: 210px; }
       #rt-main { font-size: 18px; }
       .contact-row { flex-wrap: wrap; }
@@ -649,7 +656,6 @@
 
         <div class="ms-controls" style="margin-top:12px">
           <button class="btn" id="ms-flagmode">🚩 插旗模式：关</button>
-          <button class="btn active" id="ms-noguess">🧠 无猜测：开</button>
           <button class="btn" id="ms-restart">🔄 重新开始</button>
         </div>
       </div>
@@ -658,7 +664,7 @@
 
       <details class="ref">
         <summary>📊 参考标准</summary>
-        <p>「无猜测模式」下每盘都可全程推理，不必盲猜。社区熟练水平参考：简单 &lt;40s、中等 &lt;120s、困难 &lt;400s。个别局面即使高手也需保守猜测时，可临时关闭无猜测模式。</p>
+        <p>每盘都经过可解性验证，全程可推理、无需盲猜。社区熟练水平参考：简单 &lt;0:40、中等 &lt;2:00、困难 &lt;6:40。</p>
       </details>
 
       <div class="panel ms-lb">
@@ -1074,7 +1080,12 @@
       let flags = 0, opened = 0, seconds = 0, timerId = null;
       let pendingTime = 0;
       let flagMode = false;   // 插旗模式：开启后点按即插旗（手机友好）
-      let noGuess = true;     // 无猜测模式：只生成可全程推理的棋盘
+      const noGuess = true;   // 无猜测模式固定开启：只生成可全程推理的棋盘
+
+      /* 计时显示为 分:秒 格式（如 1:23） */
+      function fmtTime(s) {
+        return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+      }
 
       function initGame() {
         /* 手机（≤480px）上中等/困难切换为竖版棋盘：列少（11 列保证 26px 可点按）、
@@ -1088,7 +1099,7 @@
         if (timerId) { clearInterval(timerId); timerId = null; }
         faceBtn.textContent = "🙂";
         updateMines();
-        timerEl.textContent = "⏱ 000";
+        timerEl.textContent = "⏱ 0:00";
 
         // 格子尺寸：手机竖版棋盘列少，格子保持 26px 以上可点按；间距在手机上收窄为 1px
         const gap = window.innerWidth <= 480 ? 1 : 2;
@@ -1142,7 +1153,7 @@
         started = true;
         timerId = setInterval(() => {
           seconds++;
-          timerEl.textContent = "⏱ " + String(Math.min(seconds, 999)).padStart(3, "0");
+          timerEl.textContent = "⏱ " + fmtTime(seconds);
         }, 1000);
 
         let board = null;
@@ -1387,7 +1398,7 @@
               if (cell.mine && !cell.flag) cell.el.textContent = "🚩";
             }
           }
-          modalTime.textContent = "用时 " + pendingTime + " 秒 · " + activeDiff.name;
+          modalTime.textContent = "用时 " + fmtTime(pendingTime) + " · " + activeDiff.name;
           nameEl.value = "";
           modal.classList.remove("hidden");
           nameEl.focus();
@@ -1425,7 +1436,7 @@
           name.textContent = entry.name;
           const time = document.createElement("span");
           time.className = "time";
-          time.textContent = entry.time + "s";
+          time.textContent = fmtTime(entry.time);
           li.append(rank, name, time);
           lbListEl.appendChild(li);
         });
@@ -1454,14 +1465,7 @@
         flagBtn.classList.toggle("active", flagMode);
       });
 
-      const noGuessBtn = document.getElementById("ms-noguess");
-      noGuessBtn.addEventListener("click", () => {
-        noGuess = !noGuess;
-        noGuessBtn.textContent = "🧠 无猜测：" + (noGuess ? "开" : "关");
-        noGuessBtn.classList.toggle("active", noGuess);
-        // 模式切换对下一局生效
-        initGame();
-      });
+      /* 无猜测模式已默认固定开启（不再提供开关），保证每盘全程可推理 */
 
       diffBtns.forEach((btn) => {
         btn.addEventListener("click", () => {

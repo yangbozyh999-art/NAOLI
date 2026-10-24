@@ -186,7 +186,7 @@
 
     .ms-face:active { transform: scale(0.92); }
 
-    .ms-board-scroll { overflow-x: auto; }
+    .ms-board-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
     .ms-board {
       display: grid; gap: 2px; touch-action: manipulation; user-select: none;
@@ -429,6 +429,7 @@
     .ccell.gone { background: var(--cell-open); color: transparent; cursor: default; }
     .ccell.miss { background: var(--danger); color: #fff; }
     .ccell.selected { background: var(--accent); color: #fff; }
+    .ccell.pairhint { box-shadow: inset 0 0 0 2px var(--accent); background: rgba(59, 130, 246, 0.18); }
 
     /* ================= 视觉记忆矩阵 ================= */
     .vm-grid {
@@ -541,6 +542,14 @@
       .contact-row { flex-wrap: wrap; }
       .modal-card { padding: 20px; }
       .btn { padding: 8px 12px; font-size: 13px; }
+
+      /* 数字划消：格子加高加大，保证手指可点按 */
+      .ccell { aspect-ratio: auto; min-height: 38px; font-size: 15px; }
+
+      /* 找不同：两图上下堆叠、占满宽度，格子变大 */
+      .diff-boards { flex-direction: column; align-items: center; gap: 10px; }
+      .dboard { width: min(320px, 100%); }
+      .dcell { font-size: 20px; }
     }
   </style>
 </head>
@@ -643,7 +652,7 @@
         </div>
       </div>
 
-      <p class="hint">左键翻开 · 右键/长按插旗 · 手机可开「插旗模式」点按插旗 · 双击数字快速翻开周围</p>
+      <p class="hint">左键翻开 · 右键/长按插旗 · 手机可开「插旗模式」点按插旗 · 双击数字快速翻开周围 · 手机上中等/困难棋盘可左右滑动，横屏体验更佳</p>
 
       <details class="ref">
         <summary>📊 参考标准</summary>
@@ -904,10 +913,10 @@
         </div>
       </div>
       <p class="best" id="cx-best">历史最佳：--</p>
-      <p class="hint">模式一：划掉所有指定数字，漏掉的会在结束后显示。模式二：点击两个相邻（上下左右）加和为 10 的数字。误点每次扣分。</p>
+      <p class="hint">模式一：划掉所有指定数字（每盘恰好 16 个），漏掉的会在结束后高亮。模式二：点击两个相邻（上下左右）加和为 10 的数字，结束后会公布未凑出的组合。误点每次扣分。</p>
       <details class="ref">
         <summary>📊 参考标准（60 秒）</summary>
-        <p>模式一：命中 ≥15 为正常，≥20 为良好；误点越少说明冲动控制越好。儿童可先追求"零误点"再提速。</p>
+        <p>模式一：每盘固定 16 个目标，命中 ≥10 为正常，≥13 良好，≥15 优秀；误点越少说明冲动控制越好。模式二：凑出 ≥8 对为正常，≥11 对为良好，≥13 对为优秀。儿童可先追求"零误点"再提速。</p>
       </details>
     </section>
 
@@ -1051,10 +1060,11 @@
         updateMines();
         timerEl.textContent = "⏱ 000";
 
-        // 格子尺寸：按列数取基准值，再用屏幕宽度收窄，避免手机上溢出
-        let size = cols > 20 ? 24 : cols > 12 ? 28 : 34;
+        // 格子尺寸：按列数取基准值；手机上不把格子缩到难以点按（最小 26px），
+        // 超出屏幕宽度的部分由 .ms-board-scroll 横向滑动
+        let size = cols > 20 ? 26 : cols > 12 ? 28 : 34;
         const usable = Math.max(200, window.innerWidth - 56);
-        size = Math.max(15, Math.min(size, Math.floor((usable - (cols - 1) * 2) / cols)));
+        size = Math.max(26, Math.min(size, Math.floor((usable - (cols - 1) * 2) / cols)));
         boardEl.style.setProperty("--cell-size", size + "px");
         boardEl.style.gridTemplateColumns = "repeat(" + cols + ", var(--cell-size))";
         boardEl.innerHTML = "";
@@ -2186,12 +2196,12 @@
       }
 
       function start() {
+        if (timerId) clearInterval(timerId); // 立即重来时先清掉进行中的旧计时
         level = 1; passedLevels = 0; timeLeft = TOTAL_TIME;
         timeEl.textContent = String(timeLeft);
         barEl.style.width = "100%";
         finalEl.textContent = "";
-        startBtn.disabled = true;
-        startBtn.textContent = "挑战中…";
+        startBtn.textContent = "🔄 立即重来";
         running = true;
         buildLevel();
         timerId = setInterval(() => {
@@ -2225,6 +2235,8 @@
      * ===================================================== */
     inits.cancel = function () {
       const COLS = 10, ROWS = 8, TOTAL_TIME = 60;
+      const TARGET_COUNT = 16;   // 模式一：每盘恰好 16 个目标数字（80 格的 20%），上限恒定，成绩公平可比
+      const MIN_TEN_PAIRS = 14;  // 模式二：每盘至少保证 14 对可凑十，避免开局上限过低或过早死局
 
       const modeBtns = document.querySelectorAll(".cx-mode");
       const gridEl   = document.getElementById("cx-grid");
@@ -2247,8 +2259,25 @@
 
       function renderBest() {
         const b = parseInt(localStorage.getItem(bestKey()) || "0", 10);
-        const label = mode === "target" ? "划消模式" : "凑十模式";
+        /* 时长固定 60 秒 = 1 分钟：模式一的命中数即"每分钟划消数"，模式二按"对"计 */
+        const label = mode === "target" ? "划消模式，个/分钟" : "凑十模式，对";
         bestEl.innerHTML = b ? "历史最佳（" + label + "）：<b>" + b + "</b>" : "历史最佳（" + label + "）：--";
+      }
+
+      /* 贪心统计棋盘上互不重叠的相邻凑十对数量（用于生成质量保证与结算统计） */
+      function countTenPairs() {
+        const used = new Array(digits.length).fill(false);
+        let pairs = 0;
+        for (let i = 0; i < digits.length; i++) {
+          if (used[i]) continue;
+          for (const j of neighborsOf(i)) {
+            if (j > i && !used[j] && digits[i] + digits[j] === 10) {
+              used[i] = true; used[j] = true; pairs++;
+              break;
+            }
+          }
+        }
+        return pairs;
       }
 
       function buildGrid() {
@@ -2256,27 +2285,38 @@
         gridEl.innerHTML = "";
         target = 1 + Math.floor(Math.random() * 9);
         targetEl.textContent = String(target);
-        for (let i = 0; i < COLS * ROWS; i++) {
-          digits.push(1 + Math.floor(Math.random() * 9));
+        const TOTAL = COLS * ROWS;
+
+        if (mode === "target") {
+          /* 恰好 TARGET_COUNT 个目标数字，其余为非目标 → 每盘上限一致 */
+          const idxs = [];
+          for (let i = 0; i < TOTAL; i++) idxs.push(i);
+          for (let i = idxs.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const t = idxs[i]; idxs[i] = idxs[j]; idxs[j] = t;
+          }
+          for (let i = 0; i < TOTAL; i++) digits.push(target);
+          for (let k = TARGET_COUNT; k < TOTAL; k++) {
+            let d;
+            do { d = 1 + Math.floor(Math.random() * 9); } while (d === target);
+            digits[idxs[k]] = d;
+          }
+        } else {
+          /* 随机生成，重试直到棋盘上可凑十的相邻对足够多 */
+          let guard = 0;
+          do {
+            digits = [];
+            for (let i = 0; i < TOTAL; i++) digits.push(1 + Math.floor(Math.random() * 9));
+          } while (countTenPairs() < MIN_TEN_PAIRS && ++guard < 60);
+        }
+
+        for (let i = 0; i < TOTAL; i++) {
           states.push("normal");
           const btn = document.createElement("button");
           btn.className = "ccell";
           btn.textContent = String(digits[i]);
           btn.addEventListener("click", () => clickCell(i, btn));
           gridEl.appendChild(btn);
-        }
-        if (mode === "target") {
-          const ensure = 6 + Math.floor(Math.random() * 5);
-          const idxs = [];
-          for (let i = 0; i < digits.length; i++) idxs.push(i);
-          for (let i = idxs.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            const t = idxs[i]; idxs[i] = idxs[j]; idxs[j] = t;
-          }
-          for (let k = 0; k < ensure; k++) {
-            digits[idxs[k]] = target;
-            gridEl.children[idxs[k]].textContent = String(target);
-          }
         }
       }
 
@@ -2299,6 +2339,37 @@
         setTimeout(() => btn.classList.remove("miss"), 200);
       }
 
+      /* 提前结束判定：
+         模式一：所有目标数字都已划掉 → 结束
+         模式二：所有数字消完，或剩下的数字里不存在能凑十的相邻对（死局）→ 结束 */
+      function hasTenPair() {
+        for (let i = 0; i < digits.length; i++) {
+          if (states[i] !== "normal") continue;
+          const nb = neighborsOf(i);
+          for (const j of nb) {
+            if (j > i && states[j] === "normal" && digits[i] + digits[j] === 10) return true;
+          }
+        }
+        return false;
+      }
+
+      function checkEarlyFinish() {
+        if (!running) return;
+        if (mode === "target") {
+          let left = 0;
+          for (let i = 0; i < digits.length; i++) {
+            if (digits[i] === target && states[i] === "normal") left++;
+          }
+          if (left === 0) finish("✅ 目标数字已全部划完，提前结束");
+        } else if (!hasTenPair()) {
+          let allGone = true;
+          for (let i = 0; i < states.length; i++) {
+            if (states[i] !== "gone") { allGone = false; break; }
+          }
+          finish(allGone ? "✅ 全部数字消完，提前结束" : "⚠️ 剩余数字已无可凑十的相邻组合，提前结束");
+        }
+      }
+
       function clickCell(i, btn) {
         if (!running) return;
         if (mode === "target") {
@@ -2308,6 +2379,7 @@
             btn.classList.add("struck");
             score++;
             scoreEl.textContent = String(score);
+            checkEarlyFinish();
           } else {
             flashMiss(btn);
           }
@@ -2333,6 +2405,7 @@
               btn.classList.add("gone");
               score += 2;
               scoreEl.textContent = String(score);
+              checkEarlyFinish();
             } else {
               flashMiss(btn);
             }
@@ -2347,12 +2420,13 @@
         timeEl.textContent = "60";
         barEl.style.width = "100%";
         finalEl.textContent = "";
-        startBtn.disabled = true;
-        startBtn.textContent = "挑战中…";
+        /* 挑战中按钮不再禁用，改为「立即重来」：点击即重新开始，无需等倒计时结束 */
+        startBtn.textContent = "🔄 立即重来";
         targetBox.style.display = mode === "target" ? "" : "none";
         running = true;
         buildGrid();
         renderBest();
+        if (timerId) clearInterval(timerId); // 立即重来时先清掉进行中的旧计时
         timerId = setInterval(() => {
           timeLeft--;
           timeEl.textContent = String(timeLeft);
@@ -2361,21 +2435,50 @@
         }, 1000);
       }
 
-      function finish() {
+      /* 找出结算时棋盘上剩余的互不重叠相邻凑十对（用于公布与高亮） */
+      function listRemainingPairs() {
+        const used = new Array(digits.length).fill(false);
+        const pairs = [];
+        for (let i = 0; i < digits.length; i++) {
+          if (used[i] || states[i] !== "normal") continue;
+          for (const j of neighborsOf(i)) {
+            if (j > i && !used[j] && states[j] === "normal" && digits[i] + digits[j] === 10) {
+              used[i] = true; used[j] = true;
+              pairs.push([i, j]);
+              break;
+            }
+          }
+        }
+        return pairs;
+      }
+
+      function finish(earlyNote) {
         running = false;
         clearInterval(timerId);
         startBtn.disabled = false;
         startBtn.textContent = "再来一次";
         let detail;
         if (mode === "target") {
-          let missed = 0;
+          const missedIdx = [];
           for (let i = 0; i < digits.length; i++) {
-            if (digits[i] === target && states[i] === "normal") missed++;
+            if (digits[i] === target && states[i] === "normal") missedIdx.push(i);
           }
+          missedIdx.forEach((i) => gridEl.children[i].classList.add("pairhint"));
           detail = "命中 <b class='ok'>" + score + "</b> · 误点 <b class='bad'>" + wrong +
-                   "</b> · 漏掉 <b class='bad'>" + missed + "</b>";
+                   "</b> · 漏掉 <b class='bad'>" + missedIdx.length + "</b>（已高亮）";
         } else {
-          detail = "凑成数对 <b class='ok'>" + (score / 2) + "</b> 对 · 误点 <b class='bad'>" + wrong + "</b>";
+          /* 公布剩余未凑出的组合：高亮棋盘并在结算中列出 */
+          const rest = listRemainingPairs();
+          rest.forEach(([a, b]) => {
+            gridEl.children[a].classList.add("pairhint");
+            gridEl.children[b].classList.add("pairhint");
+          });
+          const names = rest.map(([a, b]) =>
+            Math.min(digits[a], digits[b]) + "+" + Math.max(digits[a], digits[b]));
+          detail = "凑成数对 <b class='ok'>" + (score / 2) + "</b> 对 · 误点 <b class='bad'>" + wrong + "</b>" +
+            (rest.length
+              ? "<span style=\"display:block;font-size:13px;color:var(--text-dim);margin-top:4px\">未凑出 " + rest.length + " 对（已在棋盘上高亮）：" + names.join("、") + "</span>"
+              : "<span style=\"display:block;font-size:13px;color:var(--text-dim);margin-top:4px\">棋盘上已无可凑十的组合</span>");
         }
         const best = parseInt(localStorage.getItem(bestKey()) || "0", 10);
         let record = "";
@@ -2383,7 +2486,9 @@
           localStorage.setItem(bestKey(), String(score));
           record = " 🎉 新纪录！";
         }
-        finalEl.innerHTML = detail + record;
+        finalEl.innerHTML =
+          (earlyNote ? "<span style=\"display:block;font-size:13px;color:var(--text-dim);margin-bottom:4px\">" + earlyNote + "</span>" : "") +
+          detail + record;
         renderBest();
       }
 

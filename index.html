@@ -538,6 +538,7 @@
       .ans-btn { font-size: 15px; padding: 12px 0; }
       #chimp-area { height: 300px; }
       .chimp-num { width: 44px; height: 44px; font-size: 17px; }
+      .ms-board { gap: 1px; }
       #rt-area { height: 210px; }
       #rt-main { font-size: 18px; }
       .contact-row { flex-wrap: wrap; }
@@ -653,7 +654,7 @@
         </div>
       </div>
 
-      <p class="hint">左键翻开 · 右键/长按插旗 · 手机可开「插旗模式」点按插旗 · 双击数字快速翻开周围 · 手机上中等/困难棋盘可左右滑动，横屏体验更佳</p>
+      <p class="hint">左键翻开 · 右键/长按插旗 · 手机可开「插旗模式」点按插旗 · 双击数字快速翻开周围 · 手机上中等/困难为竖版棋盘，上下滑动页面即可</p>
 
       <details class="ref">
         <summary>📊 参考标准</summary>
@@ -1025,8 +1026,8 @@
     inits.minesweeper = function () {
       const DIFFS = {
         easy:   { name: "简单", rows: 9,  cols: 9,  mines: 10 },
-        medium: { name: "中等", rows: 16, cols: 16, mines: 40 },
-        hard:   { name: "困难", rows: 16, cols: 30, mines: 99 },
+        medium: { name: "中等", rows: 16, cols: 16, mines: 40, m: { rows: 24, cols: 11, mines: 40 } },
+        hard:   { name: "困难", rows: 16, cols: 30, mines: 99, m: { rows: 44, cols: 11, mines: 99 } },
       };
 
       const boardEl  = document.getElementById("ms-board");
@@ -1067,6 +1068,7 @@
       }, true);
 
       let diff = "easy";
+      let activeDiff = DIFFS.easy;  // 当前实际使用的棋盘规格（手机上中等/困难会用竖版）
       let grid = [];
       let started = false, over = false;
       let flags = 0, opened = 0, seconds = 0, timerId = null;
@@ -1075,7 +1077,11 @@
       let noGuess = true;     // 无猜测模式：只生成可全程推理的棋盘
 
       function initGame() {
-        const { rows, cols } = DIFFS[diff];
+        /* 手机（≤480px）上中等/困难切换为竖版棋盘：列少（11 列保证 26px 可点按）、
+           行数加多、雷数与雷密度不变，用页面自然的上下滚动代替横向滑动 */
+        const isMobile = window.innerWidth <= 480;
+        activeDiff = isMobile && DIFFS[diff].m ? Object.assign({}, DIFFS[diff], DIFFS[diff].m) : DIFFS[diff];
+        const { rows, cols } = activeDiff;
         grid = [];
         started = false; over = false;
         flags = 0; opened = 0; seconds = 0;
@@ -1084,11 +1090,11 @@
         updateMines();
         timerEl.textContent = "⏱ 000";
 
-        // 格子尺寸：按列数取基准值；手机上不把格子缩到难以点按（最小 26px），
-        // 超出屏幕宽度的部分由 .ms-board-scroll 横向滑动
+        // 格子尺寸：手机竖版棋盘列少，格子保持 26px 以上可点按；间距在手机上收窄为 1px
+        const gap = window.innerWidth <= 480 ? 1 : 2;
         let size = cols > 20 ? 26 : cols > 12 ? 28 : 34;
         const usable = Math.max(200, window.innerWidth - 56);
-        size = Math.max(26, Math.min(size, Math.floor((usable - (cols - 1) * 2) / cols)));
+        size = Math.max(26, Math.min(size, Math.floor((usable - (cols - 1) * gap) / cols)));
         boardEl.style.setProperty("--cell-size", size + "px");
         boardEl.style.gridTemplateColumns = "repeat(" + cols + ", var(--cell-size))";
         boardEl.innerHTML = "";
@@ -1132,7 +1138,7 @@
        * 无猜测模式：用推理求解器验证整盘可解，不可解就重新布雷
        *（经典扫雷天然存在必须盲猜的局面，如 50/50，此模式可避免）。 */
       function placeMines(safeR, safeC) {
-        const { rows, cols, mines } = DIFFS[diff];
+        const { rows, cols, mines } = activeDiff;
         started = true;
         timerId = setInterval(() => {
           seconds++;
@@ -1144,8 +1150,9 @@
           board = randomBoard(rows, cols, mines, safeR, safeC);
         } else {
           // 限时生成：难度越高重试越多，超时则用最后一张（极少数情况）
+          // 手机竖版窄棋盘（11 列）单次求解更快，重试上限需更高才能保证高成功率
           const deadline = performance.now() + 800;
-          const attempts = diff === "hard" ? 80 : 40;
+          const attempts = diff === "hard" ? 300 : 60;
           for (let a = 0; a < attempts; a++) {
             board = randomBoard(rows, cols, mines, safeR, safeC);
             if (isSolvable(board.mine, board.count, rows, cols, mines, safeR, safeC)) break;
@@ -1288,7 +1295,7 @@
       }
 
       function neighbors(r, c) {
-        const { rows, cols } = DIFFS[diff];
+        const { rows, cols } = activeDiff;
         const res = [];
         for (let dr = -1; dr <= 1; dr++) {
           for (let dc = -1; dc <= 1; dc++) {
@@ -1352,7 +1359,7 @@
         over = true;
         if (timerId) { clearInterval(timerId); timerId = null; }
         faceBtn.textContent = "😵";
-        const { rows, cols } = DIFFS[diff];
+        const { rows, cols } = activeDiff;
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
             const cell = grid[r][c];
@@ -1368,7 +1375,7 @@
       }
 
       function checkWin() {
-        const { rows, cols, mines } = DIFFS[diff];
+        const { rows, cols, mines } = activeDiff;
         if (opened === rows * cols - mines) {
           over = true;
           if (timerId) { clearInterval(timerId); timerId = null; }
@@ -1380,7 +1387,7 @@
               if (cell.mine && !cell.flag) cell.el.textContent = "🚩";
             }
           }
-          modalTime.textContent = "用时 " + pendingTime + " 秒 · " + DIFFS[diff].name;
+          modalTime.textContent = "用时 " + pendingTime + " 秒 · " + activeDiff.name;
           nameEl.value = "";
           modal.classList.remove("hidden");
           nameEl.focus();
@@ -1388,7 +1395,7 @@
       }
 
       function updateMines() {
-        const remaining = DIFFS[diff].mines - flags;
+        const remaining = activeDiff.mines - flags;
         minesEl.textContent = "💣 " + String(Math.max(remaining, -99)).padStart(3, "0");
       }
 
@@ -1398,7 +1405,7 @@
         catch (e) { return {}; }
       }
       function renderLb() {
-        lbNameEl.textContent = DIFFS[diff].name;
+        lbNameEl.textContent = activeDiff.name;
         const list = (loadLb()[diff] || []).slice(0, 10);
         lbListEl.innerHTML = "";
         if (list.length === 0) {
@@ -1469,7 +1476,7 @@
       });
 
       lbClear.addEventListener("click", () => {
-        if (confirm("确定清空「" + DIFFS[diff].name + "」排行榜吗？")) {
+        if (confirm("确定清空「" + activeDiff.name + "」排行榜吗？")) {
           const data = loadLb();
           delete data[diff];
           localStorage.setItem(LB_KEY, JSON.stringify(data));
@@ -1486,7 +1493,7 @@
         pressTimer = setTimeout(() => {
           longPressed = true;
           const idx = Array.prototype.indexOf.call(boardEl.children, target);
-          const cols = DIFFS[diff].cols;
+          const cols = activeDiff.cols;
           toggleFlag(Math.floor(idx / cols), idx % cols);
           if (navigator.vibrate) navigator.vibrate(30);
         }, 350);

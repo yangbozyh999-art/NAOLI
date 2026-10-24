@@ -362,6 +362,7 @@
     .st-overlay {
       position: absolute; inset: 0; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 14px; text-align: center;
+      background: var(--bg); border-radius: 10px;
     }
 
     /* ================= N-back ================= */
@@ -1828,6 +1829,10 @@
         cpShowLives();
         cpStartLevel();
       });
+
+      /* 初始状态：显示开始遮罩（chimp-msg 默认隐藏，需 overlay 类才可见），关卡显示第 1 关 */
+      cpLevelEl.textContent = "1";
+      cpArea.classList.add("overlay");
     };
 
     /* =====================================================
